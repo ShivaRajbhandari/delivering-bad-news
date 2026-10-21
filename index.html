@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delivering Bad News</title>
+<meta name="description" content="A choose-your-path leadership RPG for PLCY 765. You play the boss; we show how we'd respond.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{--cb:#7BAFD4;--cbd:#4B9CD3;--navy:#13294B;--navy2:#1F3A63;--ink:#0B1A30;--gold:#F2C14E;--red:#E0533D;--green:#8FDDA6}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--ink);color:#fff}
+body{display:flex;align-items:center;justify-content:center;font-family:'VT323',monospace;overflow:hidden}
+button{font:inherit;color:inherit}
+.pix{font-family:'Press Start 2P',monospace;font-weight:400}
+#stage{position:relative;width:min(100vw,177.78vh);aspect-ratio:16/9;container-type:inline-size;overflow:hidden;background:#000;
+  --fs-text:3cqw;--fs-small:2.1cqw;--fs-pix:1.05cqw;--fs-pix-s:.85cqw;--pad:1.8cqw;user-select:none;-webkit-user-select:none;cursor:pointer}
+canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+.panel{background:rgba(11,26,48,.85);border:.3cqw solid var(--cb);box-shadow:0 0 0 .3cqw var(--navy)}
+#hud{position:absolute;top:var(--pad);left:var(--pad);display:grid;grid-template-columns:auto auto;gap:.55cqw 1cqw;align-items:center;padding:.9cqw 1.1cqw}
+.ml{font-size:var(--fs-pix-s);letter-spacing:.05em}
+.cells{display:flex;gap:.2cqw}
+.cell{width:1.1cqw;height:1.1cqw;background:#2A3F60;display:block}
+.cell.on{background:var(--c)}
+#clock{position:absolute;top:var(--pad);right:var(--pad);text-align:right;padding:.9cqw 1.1cqw;font-size:var(--fs-pix);line-height:1.8}
+#due{color:var(--gold)}
+#due.today{color:var(--red);animation:blink 1s steps(2) infinite}
+.tools{display:flex;gap:.5cqw;justify-content:flex-end;margin-top:.4cqw}
+.tool{all:unset;cursor:pointer;font-family:'Press Start 2P';font-size:var(--fs-pix-s);padding:.35cqw .5cqw;border:.2cqw solid var(--cb);color:#fff}
+.tool:hover,.tool:focus-visible{background:var(--cbd)}
+.tool[aria-pressed="false"]{opacity:.55}
+#box{position:absolute;left:var(--pad);right:var(--pad);bottom:var(--pad);background:var(--navy);border:.35cqw solid #fff;
+  box-shadow:0 0 0 .35cqw var(--navy),0 0 0 .7cqw var(--cb);padding:1.6cqw 2.2cqw 1.6cqw;min-height:13cqw;cursor:pointer}
+#speaker{position:absolute;top:-2cqw;left:1.6cqw;background:var(--cb);color:var(--navy);font-size:var(--fs-pix);padding:.6cqw 1cqw;border:.3cqw solid #fff}
+#speaker.h{background:var(--gold)}
+#speaker.l,#speaker.d{background:#fff}
+#speaker.p,#speaker.m,#speaker.j{background:var(--green)}
+#text{font-size:var(--fs-text);line-height:1.08;min-height:2.16em;white-space:pre-wrap}
+#text.narr{color:var(--cb)}
+#next{position:absolute;right:1.4cqw;bottom:.9cqw;font-size:var(--fs-pix);color:var(--gold);animation:blink .9s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+#prompt{font-size:var(--fs-pix);color:var(--gold);line-height:1.6;margin-bottom:.6cqw}
+#choices{display:flex;flex-direction:column;gap:.35cqw}
+.choice{all:unset;cursor:pointer;font-family:'VT323';font-size:calc(var(--fs-text)*.9);line-height:1.05;padding:.25cqw .8cqw;display:flex;gap:1.1cqw;align-items:center;color:#fff}
+.choice .k{font-family:'Press Start 2P';font-size:var(--fs-pix);color:var(--navy);background:var(--cb);padding:.4cqw .55cqw;flex:none}
+.choice.sel{background:var(--cbd)}
+.choice.sel .k{background:var(--gold)}
+#lens{position:absolute;right:0;bottom:100%;margin-bottom:1.3cqw;display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:.5cqw;max-width:70cqw;pointer-events:none}
+.chip{font-size:var(--fs-small);line-height:1;padding:.45cqw .9cqw .55cqw;background:rgba(11,26,48,.92);border-left:.6cqw solid var(--c);color:#fff;animation:slide .4s steps(4) both}
+.chip b{font-family:'Press Start 2P';font-size:var(--fs-pix-s);color:var(--c);margin-right:.7cqw;font-weight:400}
+.chip.head{border-left-color:var(--cb);font-family:'Press Start 2P';font-size:var(--fs-pix-s);padding:.75cqw .9cqw;color:var(--cb)}
+@keyframes slide{from{transform:translateY(130%);opacity:0}to{transform:none;opacity:1}}
+#toasts{position:absolute;left:var(--pad);top:11.5cqw;pointer-events:none}
+.toast{font-family:'Press Start 2P';font-size:var(--fs-pix);margin-bottom:.6cqw;animation:rise 1.8s ease-out forwards;text-shadow:.15cqw .15cqw 0 #000}
+@keyframes rise{0%{opacity:0;transform:translateY(1cqw)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0;transform:translateY(-2cqw)}}
+.overlay{position:absolute;inset:0;display:none}
+.overlay.show{display:flex}
+#title{flex-direction:column;align-items:center;text-align:center;padding-top:3.2cqw}
+.kicker{font-size:1.05cqw;color:var(--cb);letter-spacing:.08em}
+#title h1{font-size:3.7cqw;line-height:1.35;margin:1.6cqw 0 1.2cqw;text-shadow:.4cqw .4cqw 0 var(--cbd),.8cqw .8cqw 0 var(--navy)}
+.sub{font-size:2.5cqw;line-height:1.05;margin:0;color:#E8F1F8}
+.sub em{font-style:normal;color:var(--gold)}
+.start{all:unset;cursor:pointer;position:absolute;bottom:6.5cqw;font-family:'Press Start 2P';font-size:1.35cqw;color:var(--gold);padding:1cqw 1.4cqw;background:rgba(11,26,48,.75);border:.3cqw solid var(--gold);animation:blink 1.2s steps(2) infinite}
+.start:hover,.start:focus-visible{animation:none;background:var(--navy)}
+.keys{position:absolute;bottom:2cqw;font-size:1.8cqw;color:#cfe2f1}
+#ending{background:rgba(11,26,48,.93);padding:3cqw 4cqw;gap:4cqw;align-items:stretch;cursor:default}
+.ecol{flex:1;min-width:0;display:flex;flex-direction:column}
+.ecol+.ecol{flex:.95;border-left:.3cqw solid var(--navy2);padding-left:3cqw}
+.ekick{font-size:1cqw;color:var(--cb)}
+.erankrow{display:flex;align-items:center;gap:2.2cqw;margin:1.6cqw 0 1.4cqw}
+.rank{font-size:7cqw;color:var(--gold);text-shadow:.5cqw .5cqw 0 var(--navy2);line-height:1}
+.rank.r-C{color:var(--red)}.rank.r-B{color:var(--cb)}.rank.r-S{color:var(--gold)}
+.etitle{font-size:1.9cqw;line-height:1.5}
+.etext{font-size:2.55cqw;line-height:1.1;margin:0 0 auto}
+.ebtns{display:flex;gap:1.2cqw;margin-top:2cqw;flex-wrap:wrap}
+.btn{all:unset;cursor:pointer;font-family:'Press Start 2P';font-size:1.05cqw;padding:1.1cqw 1.4cqw;background:var(--cb);color:var(--navy);border:.3cqw solid #fff}
+.btn.alt{background:transparent;color:#fff;border-color:var(--cb)}
+.btn:hover,.btn:focus-visible{background:var(--gold);color:var(--navy)}
+.eh{font-size:.9cqw;color:var(--cb);margin:0 0 .9cqw}
+.eh:not(:first-child){margin-top:1.8cqw}
+.emeters{display:grid;grid-template-columns:auto auto;gap:.6cqw 1.2cqw;align-items:center;justify-content:start}
+.epath{margin:0;padding:0;list-style:none;font-size:2.1cqw;line-height:1.1}
+.epath li{display:flex;gap:1cqw}
+.epath li span{color:var(--gold)}
+.elens{font-size:1.95cqw;line-height:1.1;display:flex;flex-direction:column;gap:.5cqw}
+.elens b{font-family:'Press Start 2P';font-size:.8cqw;font-weight:400;display:block;margin-bottom:.15cqw}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+[hidden]{display:none!important}
+
+@media (max-aspect-ratio: 1/1){
+  body{align-items:flex-start;overflow:auto}
+  #stage{width:100vw;aspect-ratio:auto;container-type:normal;overflow:visible;background:var(--ink);
+    --fs-text:21px;--fs-small:16px;--fs-pix:9px;--fs-pix-s:7px;--pad:8px}
+  canvas{position:relative;height:auto;aspect-ratio:16/9}
+  .cell{width:6px;height:6px}
+  .cells{gap:2px}
+  #hud,#clock{padding:5px 6px;gap:3px 6px;border-width:2px;box-shadow:none}
+  #clock{line-height:1.6}
+  .tools{gap:4px}.tool{padding:4px;border-width:2px}
+  #box{position:relative;left:auto;right:auto;bottom:auto;margin:28px 16px 16px;padding:18px 16px 26px;min-height:150px;border-width:3px;box-shadow:0 0 0 3px var(--navy),0 0 0 6px var(--cb)}
+  #speaker{top:-16px;left:12px;padding:5px 7px;border-width:2px}
+  #next{right:10px;bottom:8px}
+  .choice{padding:4px 6px;gap:10px}.choice .k{padding:4px 5px}
+  #choices{gap:4px}
+  #lens{position:static;margin:0 0 10px;justify-content:flex-start;max-width:none}
+  .chip{padding:4px 7px 5px;border-left-width:5px}
+  .chip.head{padding:6px 7px}
+  #toasts{top:70px}
+  .toast{margin-bottom:4px}
+  #title{position:absolute;inset:0 0 auto 0;height:56.25vw;padding-top:10px}
+  .kicker{font-size:7px}#title h1{font-size:15px;margin:8px 0 6px}
+  .sub{font-size:16px}
+  .start{font-size:9px;bottom:auto;top:calc(56.25vw + 24px);padding:10px 12px;border-width:2px}
+  .keys{font-size:16px;bottom:auto;top:calc(56.25vw + 74px);padding:0 16px}
+  #ending{position:fixed;inset:0;flex-direction:column;overflow:auto;padding:20px 16px;gap:18px;background:var(--ink)}
+  .ecol,.ecol+.ecol{flex:none}
+  .ecol+.ecol{border-left:0;padding-left:0;border-top:2px solid var(--navy2);padding-top:16px}
+  .ekick{font-size:8px}.rank{font-size:40px}.etitle{font-size:12px}
+  .etext{font-size:20px;margin:0}
+  .btn{font-size:9px;padding:10px 12px;border-width:2px}
+  .eh{font-size:8px}.epath{font-size:18px}.elens{font-size:17px}.elens b{font-size:7px}
+  .emeters{gap:5px 10px}
+}
+@media (prefers-reduced-motion: reduce){.chip,.toast{animation-duration:.01s}.start,#next{animation:none}}
+</style>
+</head>
+<body>
+<main id="stage" aria-label="Delivering Bad News, a choose-your-path game">
+  <canvas id="scene" width="320" height="180" aria-hidden="true"></canvas>
+
+  <div id="hud" class="panel" hidden role="img" aria-label="Stats"></div>
+  <div id="clock" class="panel pix" hidden>
+    <div id="clockTime">THU 4:12 PM</div>
+    <div id="due">DUE IN 4 DAYS</div>
+    <div class="tools">
+      <button class="tool" id="tUndo" title="Undo last choice (Backspace)">UNDO</button>
+      <button class="tool" id="tLens" aria-pressed="true" title="Leadership lens (L)">LENS</button>
+      <button class="tool" id="tSound" aria-pressed="true" title="Sound (M)">SOUND</button>
+      <button class="tool" id="tFull" title="Fullscreen (F)">FULL</button>
+    </div>
+  </div>
+  <div id="toasts" aria-hidden="true"></div>
+
+  <div id="box" hidden>
+    <div id="lens" aria-label="Leadership concepts"></div>
+    <div id="speaker" class="pix" hidden></div>
+    <div id="text"></div>
+    <div id="prompt" class="pix" hidden></div>
+    <div id="choices" role="list" hidden></div>
+    <div id="next" class="pix" aria-hidden="true">▼</div>
+  </div>
+  <div id="sr" class="sr" aria-live="polite"></div>
+
+  <section id="title" class="overlay show">
+    <div class="kicker pix">PLCY 765 · SCENARIO ANALYSIS 4</div>
+    <h1 class="pix">DELIVERING<br>BAD NEWS</h1>
+    <p class="sub">You found the error. Now the boss decides.<br>You play <em>Director Harper</em>.</p>
+    <button class="start" id="startBtn">▶ PRESS ENTER TO START</button>
+    <div class="keys">Enter / Space: next · 1–5: choose · Backspace: undo · L: lens · M: sound · F: fullscreen</div>
+  </section>
+
+  <section id="ending" class="overlay" aria-live="polite">
+    <div class="ecol">
+      <div class="ekick pix">ENDING REACHED</div>
+      <div class="erankrow"><div id="eRank" class="rank pix">S</div><div id="eTitle" class="etitle pix"></div></div>
+      <p id="eText" class="etext"></p>
+      <div class="ebtns">
+        <button class="btn" id="again">TRY ANOTHER PATH</button>
+        <button class="btn alt" id="toTitle">TITLE SCREEN</button>
+      </div>
+    </div>
+    <div class="ecol">
+      <div class="eh pix">FINAL STATS</div>
+      <div id="eMeters" class="emeters"></div>
+      <div class="eh pix">HARPER'S CHOICES</div>
+      <ol id="ePath" class="epath"></ol>
+      <div class="eh pix">LEADERSHIP LENS</div>
+      <div id="eLens" class="elens"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const cv = $('scene'), ctx = cv.getContext('2d');
+const W = 320, H = 180;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- palette (UNC: Carolina Blue, navy, white) ---------- */
+const C = {
+  cb:'#7BAFD4', cbd:'#4B9CD3', navy:'#13294B', navy2:'#1F3A63', ink:'#0B1A30',
+  ice:'#E8F1F8', ice2:'#D3E5F2', wall:'#DCEBF6', slate:'#4F758B',
+  wood:'#9C6B43', wood2:'#7A5133', wood3:'#B9875A', green:'#3E8E5A', green2:'#2D6B43',
+  red:'#E0533D', gold:'#F2C14E', grey:'#9AA7B4', grey2:'#C9D2DA', brick:'#A6533C', brick2:'#8A4230'
+};
+function R(x, y, w, h, c){ ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function circ(cx, cy, r, c){ for (let y = -r; y <= r; y++){ const w = Math.floor(Math.sqrt(r*r - y*y)); R(cx - w, cy + y, w*2 + 1, 1, c); } }
+const STARS = Array.from({length:70}, (_, i) => ({x:(i*97 + 13) % 320, y:(i*53 + 7) % 110, p:i % 7}));
+
+/* ---------- landmarks ---------- */
+function oldWell(cx, gy, s, moon){
+  const wh = moon ? '#DCE7F1' : '#FFFFFF', sh = moon ? '#9FB3C6' : '#D5DDE5';
+  const r = (x, y, w, h, c) => R(cx + x*s, gy + y*s, w*s, h*s, c);
+  r(-23,-3,46,3,moon?'#8FA3B6':'#BFC8D0'); r(-20,-5,40,2,sh);
+  [-17,-11,-5,3,9,15].forEach(i => { r(i,-24,2,19,wh); r(i+1.4,-24,.6,19,sh); });
+  r(-4,-10,8,5,moon?'#6F8396':C.grey); r(-3,-11,6,1,sh);
+  r(-20,-27,40,3,wh); r(-20,-28,40,1,sh);
+  for (let i = 0; i < 13; i++){ const hw = Math.round(Math.sqrt(1 - (i/13)**2) * 17); r(-hw,-29-i,hw*2,1,i % 4 === 0 ? sh : wh); }
+  r(-2.5,-45,5,3,wh); r(-1,-48,2,3,wh); r(-.5,-50,1,2,C.gold);
+}
+function bellTower(cx, gy, night){
+  const b = night ? '#5a3a33' : C.brick, b2 = night ? '#4a2f2a' : C.brick2, wt = night ? '#9fb0c0' : '#fff', gap = night ? '#2a3a4a' : '#6f8193';
+  R(cx-4,gy-32,8,32,b); R(cx-2,gy-32,1,32,b2); R(cx+1,gy-32,1,32,b2);
+  R(cx-5,gy-34,10,2,wt); R(cx-5,gy-43,10,9,wt); R(cx-3,gy-41,2,6,gap); R(cx+1,gy-41,2,6,gap);
+  R(cx-6,gy-45,12,2,wt); R(cx-4,gy-49,8,4,wt); R(cx-2,gy-53,4,4,wt); R(cx-1,gy-58,2,5,wt); R(cx,gy-60,1,2,C.gold);
+}
+function sky(x, y, w, h, night, t){
+  if (night){
+    R(x,y,w,h,C.ink);
+    for (const s of STARS) if (s.x >= x && s.x < x+w && s.y >= y && s.y < y+h && ((t/450 + s.p) | 0) % 6) R(s.x,s.y,1,1,'#cfe2f1');
+    circ(x + w - 14, y + 10, 4, '#F4F1DE');
+  } else {
+    const bands = ['#B5D4EC','#9CC5E5','#7BAFD4'], bh = Math.ceil(h/3);
+    bands.forEach((c, i) => R(x, y + i*bh, w, Math.min(bh, h - i*bh), c));
+    const cx = x + ((t/140) % (w + 40)) - 24;
+    R(cx,y+9,18,4,'#fff'); R(cx+4,y+6,9,3,'#fff');
+  }
+}
+function windowView(x, y, w, h, kind, t, night){
+  R(x-3,y-3,w+6,h+6,'#fff');
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  sky(x,y,w,h,night,t);
+  const gy = y + h - 8;
+  for (let i = 0; i < w + 12; i += 11){ const th = 7 + ((i*7) % 6); R(x+i-3, gy-th, 13, th+2, ((i/11)|0) % 2 ? (night?'#14304a':C.green) : (night?'#0f2539':C.green2)); }
+  if (kind === 'bell') bellTower(x + w*0.62, gy, night);
+  if (kind === 'well') oldWell(x + w/2, gy + 2, 1, night);
+  R(x,gy,w,8,night ? '#10263d' : '#5E9E6E');
+  ctx.restore();
+  R(x-5,y+h+3,w+10,3,'#fff');
+}
+function pennant(x, y){
+  R(x-2,y-2,2,18,'#fff');
+  for (let c = 0; c < 34; c++){ const hh = Math.max(1, Math.round(7*(1 - c/34))); R(x+c, y+7-hh, 1, hh*2, C.cb); }
+  R(x+3,y+6,18,2,'#fff');
+}
+function wallClock(x, y){ circ(x,y,7,C.navy); circ(x,y,6,'#fff'); R(x,y-4,1,4,C.navy); R(x,y,3,1,C.navy); }
+function carpet(){ R(0,100,W,80,C.navy2); for (let y = 104, k = 0; y < H; y += 8, k++) for (let x = (k % 2) * 4; x < W; x += 8) R(x,y,1,1,'#2A4A78'); }
+function baseWall(color){ R(0,0,W,100,color || C.wall); R(0,82,W,18,C.ice2); R(0,82,W,1,C.cb); }
+
+/* ---------- rooms ---------- */
+function office(t, night){
+  baseWall(night ? '#22344f' : C.wall);
+  if (night){ R(0,82,W,18,'#1b2b44'); }
+  carpet();
+  windowView(16,12,74,62,'bell',t,night);
+  pennant(108,18);
+  wallClock(212,24);
+  const cx = 248;
+  R(cx,14,40,34,'#fff'); R(cx,14,40,7,C.red);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) R(cx+3+c*7, 24+r*7, 5, 5, C.grey2);
+  const ox = cx+3+4*7-1, oy = 24+2*7-1;
+  if (((t/500)|0) % 2){ R(ox,oy,7,1,C.red); R(ox,oy+6,7,1,C.red); R(ox,oy,1,7,C.red); R(ox+6,oy,1,7,C.red); }
+  R(118,86,196,5,C.wood3); R(124,91,184,12,C.wood2);
+  R(174,54,50,32,'#1b1b1b'); R(177,57,44,26,'#fff');
+  for (let i = 0; i < 7; i++) R(177,57+i*4,44,1,'#d6e2ec');
+  for (let j = 0; j < 6; j++) R(177+j*8,57,1,26,'#d6e2ec');
+  if (((t/420)|0) % 2){ R(186,61,7,3,C.red); R(202,69,7,3,C.red); R(194,77,7,3,C.red); }
+  R(197,83,4,3,'#333');
+  R(240,80,6,6,C.cb); R(246,82,2,2,C.cb); R(258,83,22,3,'#fff'); R(260,81,18,2,'#eef3f8');
+  if (night){
+    R(288,64,10,3,C.gold); R(292,67,2,19,'#333');
+    ctx.fillStyle = 'rgba(242,193,78,.16)'; ctx.beginPath(); ctx.arc(292,76,46,0,Math.PI*2); ctx.fill();
+  }
+}
+function bossRoom(t){
+  R(0,0,W,100,'#CFE3F2'); R(0,78,W,22,C.navy); R(0,77,W,1,'#fff');
+  R(0,100,W,80,'#5E4330');
+  for (let y = 100, k = 0; y < H; y += 6, k++){ R(0,y,W,1,'#4E3727'); for (let x = (k % 2) * 20; x < W; x += 40) R(x,y,1,6,'#4E3727'); }
+  windowView(62,10,100,58,'well',t,false);
+  pennant(16,18);
+  R(196,22,24,18,C.navy); R(198,24,20,14,'#fff'); R(201,27,14,1,C.grey); R(201,30,10,1,C.grey); circ(213,34,2,C.gold);
+  R(246,12,60,88,C.navy2);
+  const bc = [C.cb,'#fff',C.slate,C.gold,C.cbd,'#E8F1F8',C.red];
+  for (let s = 0; s < 4; s++){
+    const sy = 14 + s*21; R(248,sy+18,56,2,C.ink);
+    let bx = 250, k = s;
+    while (bx < 300){ const bw = 3 + (k*5 % 3); R(bx, sy + 4 + (k % 3), bw, 14 - (k % 3), bc[k % bc.length]); bx += bw + 1; k += 3; }
+  }
+  R(16,86,16,14,C.slate); circ(24,78,9,C.green); circ(17,72,6,C.green2); circ(31,70,6,C.green);
+}
+function bossFg(){
+  R(64,88,100,4,C.wood3); R(68,92,92,18,C.wood2); R(72,96,84,1,C.wood);
+  R(100,83,28,5,C.navy); R(102,85,24,1,C.gold);
+  R(140,82,5,6,'#fff'); R(145,84,2,2,'#fff'); R(76,86,16,2,'#fff');
+}
+function confRoom(t){
+  baseWall(); carpet();
+  windowView(14,14,60,50,'trees',t,false);
+  R(102,8,116,56,C.grey); R(104,10,112,52,'#fff');
+  [18,26,14,32,22].forEach((h, i) => R(116+i*14, 54-h, 9, h, i === 3 ? C.red : C.cb));
+  R(112,54,76,1,C.navy); R(112,18,1,36,C.navy);
+  R(194,16,16,2,C.navy); R(194,21,12,2,C.navy); R(194,26,14,2,C.navy); R(194,34,16,2,C.red); R(194,39,10,2,C.red);
+  if (((t/500)|0) % 2){ R(155,18,13,1,C.red); R(155,56,13,1,C.red); R(155,18,1,38,C.red); R(167,18,1,38,C.red); }
+  wallClock(252,22); pennant(268,40);
+}
+function confFg(){
+  R(18,90,284,5,C.wood3); R(24,95,272,18,C.wood2);
+  R(46,87,12,2,'#fff'); R(140,87,14,2,'#fff'); R(196,84,16,6,'#B0BCC8'); R(250,85,5,5,C.cb); R(84,85,5,5,'#fff');
+}
+function hall(t){
+  baseWall();
+  for (let y = 100, k = 0; y < H; y += 10, k++) for (let x = 0; x < W; x += 20) R(x + (k % 2)*10, y, 10, 10, '#C9D2DA'), R(x + ((k+1) % 2)*10, y, 10, 10, '#E6ECF2');
+  R(26,30,40,70,C.navy2); R(31,36,30,26,'#2A4A78'); R(59,66,3,3,C.gold); R(34,22,24,6,C.cb);
+  R(252,30,40,70,C.navy2); R(257,36,30,26,'#2A4A78'); R(285,66,3,3,C.gold);
+  R(118,24,64,38,'#B98B5E'); R(122,28,12,9,'#fff'); R(138,30,14,10,C.cb); R(156,27,10,12,'#FFF3B0'); R(126,42,16,12,'#fff'); R(148,44,22,10,C.gold);
+  R(150,8,20,7,C.green2); R(153,10,14,3,'#fff');
+  pennant(200,30);
+}
+function callRoom(t){
+  baseWall(); carpet();
+  R(54,6,212,74,'#111'); R(58,10,204,66,C.ink);
+  R(62,14,96,58,C.navy2);
+  R(98,48,28,24,'#9C4D3E'); R(104,46,16,4,'#D9A57B');
+  circ(112,36,9,'#D9A57B'); R(103,25,19,6,'#6B3E26'); R(102,28,3,12,'#6B3E26'); R(119,28,3,12,'#6B3E26');
+  R(107,35,2,2,'#222'); R(115,35,2,2,'#222');
+  const talking = st.typing && st.talk === 'l';
+  R(109,41,6,talking && ((t/110)|0) % 2 ? 2 : 1,'#5a1a1a');
+  R(62,66,96,6,'rgba(0,0,0,.45)'); R(64,68,40,2,'#fff');
+  R(162,14,96,58,'#2A4A78');
+  circ(210,38,8,C.gold); R(188,50,44,3,C.cb); R(192,56,36,3,C.cb); R(198,62,24,2,C.cb);
+  if (((t/600)|0) % 2) circ(252,20,2,C.red);
+  pennant(276,22);
+}
+function callFg(){ R(40,92,240,5,C.wood3); R(46,97,228,16,C.wood2); R(150,88,14,4,'#B0BCC8'); }
+function titleBg(t){
+  const bands = [C.ink,'#0F2240',C.navy,'#1A3560','#22427A','#2E5A94','#4B7FB8'], bh = Math.ceil(150/bands.length);
+  bands.forEach((c, i) => R(0, i*bh, W, bh, c));
+  for (const s of STARS) if (s.y < 80 && ((t/450 + s.p) | 0) % 6) R(s.x, s.y, 1, 1, '#E8F1F8');
+  bellTower(52,150,true);
+  for (let i = 0; i < W + 12; i += 11){ const h = 10 + ((i*13) % 9); if (i < 110 || i > 210) R(i-3, 150-h, 13, h, ((i/11)|0) % 2 ? '#0d2036' : '#10263d'); }
+  R(0,150,W,30,'#14304a');
+  for (let y = 150; y < H; y++){ const w = 18 + (y-150)*2.4; R(160 - w/2, y, w, 1, '#2a4a6e'); }
+  oldWell(160,151,1.6,true);
+}
+
+/* ---------- characters ---------- */
+const PEOPLE = {
+  you:     {skin:'#C68863', hair:'#2B1D14', style:'short', shirt:C.cb, pants:C.navy},
+  harper:  {skin:'#8D5A3B', hair:'#1A1110', style:'bun', shirt:'#fff', blazer:C.navy, pants:'#22304A', earring:C.gold},
+  priya:   {skin:'#B07A52', hair:'#140D0B', style:'long', shirt:C.slate, pants:'#2B2B35'},
+  marcus:  {skin:'#5C3A24', hair:'#111', style:'short', shirt:'#fff', tie:C.cbd, pants:'#3A3F4B'},
+  jun:     {skin:'#E2B98F', hair:'#1C1C1C', style:'curly', shirt:'#A9CDE8', pants:'#2B3550'},
+  director:{skin:'#F0C9A0', hair:'#B8BEC6', style:'short', shirt:'#fff', blazer:C.slate, pants:'#2B2B35', glasses:true}
+};
+function person(id, x, by, e, talk, t, o){
+  const p = PEOPLE[id];
+  const b = (!reduce && Math.sin(t/380 + x*0.7) > 0.2) ? 1 : 0;
+  const top = p.blazer || p.shirt;
+  R(x-6,by-12,5,12,p.pants); R(x+1,by-12,5,12,p.pants);
+  R(x-7,by-2,6,2,'#1b1b1b'); R(x+1,by-2,6,2,'#1b1b1b');
+  const ty = by - 30 + b;
+  R(x-8,ty,16,19,top);
+  if (p.blazer){ R(x-2,ty,4,12,p.shirt); R(x-3,ty,1,11,'rgba(0,0,0,.25)'); R(x+2,ty,1,11,'rgba(0,0,0,.25)'); }
+  if (p.tie) R(x-1,ty+1,2,10,p.tie);
+  if (e === 'angry'){
+    R(x-12,ty-8,3,12,top); R(x+9,ty-8,3,12,top); R(x-12,ty-11,3,3,p.skin); R(x+9,ty-11,3,3,p.skin);
+  } else {
+    R(x-11,ty+1,3,14,top); R(x+8,ty+1,3,14,top); R(x-11,ty+15,3,3,p.skin); R(x+8,ty+15,3,3,p.skin);
+  }
+  R(x-2,ty-2,4,2,p.skin);
+  const hx = x - 7, hy = ty - 16, hc = p.hair;
+  if (p.style === 'long'){ R(hx-2,hy+2,3,17,hc); R(hx+13,hy+2,3,17,hc); }
+  R(hx,hy,14,14,p.skin);
+  switch (p.style){
+    case 'short': R(hx-1,hy-2,16,5,hc); R(hx-1,hy+3,2,4,hc); R(hx+13,hy+3,2,4,hc); break;
+    case 'long':  R(hx-1,hy-2,16,5,hc); break;
+    case 'bun':   R(hx-1,hy-2,16,4,hc); R(hx+4,hy-7,6,5,hc); R(hx-1,hy+2,2,5,hc); R(hx+13,hy+2,2,5,hc); break;
+    case 'curly': R(hx-2,hy-3,18,5,hc); R(hx-3,hy,3,6,hc); R(hx+14,hy,3,6,hc); R(hx,hy-5,3,2,hc); R(hx+5,hy-5,4,2,hc); R(hx+11,hy-5,3,2,hc); break;
+  }
+  if (p.earring){ R(hx-1,hy+9,1,2,p.earring); R(hx+14,hy+9,1,2,p.earring); }
+  const ink = '#1a1a1a', lip = '#5a1f18', ey = hy + 6;
+  const blink = (t + x*97) % 4200 < 130;
+  if (e === 'think'){ R(hx+4,hy+5,2,2,ink); R(hx+10,hy+5,2,2,ink); }
+  else if (e === 'shock'){ R(hx+3,ey-1,2,3,ink); R(hx+9,ey-1,2,3,ink); }
+  else if (blink){ R(hx+3,ey+1,2,1,ink); R(hx+9,ey+1,2,1,ink); }
+  else { R(hx+3,ey,2,2,ink); R(hx+9,ey,2,2,ink); }
+  if (p.glasses){ [2,8].forEach(d => { R(hx+d,ey-1,4,1,'#333'); R(hx+d,ey+2,4,1,'#333'); }); R(hx+6,ey,2,1,'#333'); }
+  if (e === 'angry'){ R(hx+2,hy+3,1,1,hc); R(hx+3,hy+4,2,1,hc); R(hx+5,hy+5,1,1,hc); R(hx+11,hy+3,1,1,hc); R(hx+9,hy+4,2,1,hc); R(hx+8,hy+5,1,1,hc); }
+  else if (e === 'stern'){ R(hx+2,hy+4,4,1,hc); R(hx+8,hy+4,4,1,hc); }
+  else if (e === 'sad'){ R(hx+2,hy+4,2,1,hc); R(hx+4,hy+3,1,1,hc); R(hx+10,hy+4,2,1,hc); R(hx+9,hy+3,1,1,hc); }
+  const open = talk && ((t/110)|0) % 2 === 0;
+  if (e === 'angry'){ R(hx+4,hy+10,6,3,lip); R(hx+4,hy+10,6,1,'#fff'); R(hx+1,hy+9,2,1,'#E07A6A'); R(hx+11,hy+9,2,1,'#E07A6A'); }
+  else if (e === 'shock'){ R(hx+6,hy+10,2,3,lip); R(hx+14,hy+1,2,3,'#9FD3FF'); }
+  else if (open){ R(hx+5,hy+10,4,2,lip); }
+  else if (e === 'smile'){ R(hx+4,hy+10,1,1,lip); R(hx+5,hy+11,4,1,lip); R(hx+9,hy+10,1,1,lip); }
+  else if (e === 'sad'){ R(hx+5,hy+10,4,1,lip); R(hx+4,hy+11,1,1,lip); R(hx+9,hy+11,1,1,lip); }
+  else R(hx+5,hy+10,4,1,lip);
+  if (o && o.carry){ R(x-10,ty+6,20,12,'#C89B66'); R(x-10,ty+6,20,2,'#A87B48'); R(x-3,ty+5,3,3,C.cb); R(x+2,ty+4,4,4,'#fff'); }
+  return {hx, hy};
+}
+
+const SCENES = {
+  title:   {bg:titleBg, cast:[]},
+  office:  {bg:t => office(t,false), cast:[['you',150]]},
+  night:   {bg:t => office(t,true), cast:[['you',150]]},
+  boss:    {bg:bossRoom, fg:bossFg, cast:[['harper',114],['you',232]]},
+  conf:    {bg:confRoom, fg:confFg, cast:[['priya',52],['marcus',102],['harper',160],['jun',218],['you',268]]},
+  hall:    {bg:hall, cast:[['you',160,{carry:true}]]},
+  call:    {bg:callRoom, fg:callFg, cast:[['harper',110],['you',210]]},
+  director:{bg:bossRoom, fg:bossFg, cast:[['director',114],['harper',214],['you',266]]}
+};
+
+/* ---------- story ---------- */
+// lines: [speaker, text, {expressions}, fx]; speakers: n narrator, y you, h Harper, p/m/j team, d director, l Lakeside
+const N = {
+intro1:{scene:'office', time:'THU 4:12 PM', lines:[
+  ['n',`Thursday, 4:12 PM. Your report for the Lakeside Foundation is due Monday, four days from now.`,{y:'neutral'}],
+  ['n',`Lakeside will use it to decide whether to renew funding for Pathways, a youth job-training program.`],
+  ['n',`During a routine check, you spot it: a skip-logic bug auto-filled the outcome questions for one in three respondents.`,{y:'shock'},'alarm'],
+  ['y',`That's 212 of 640 responses. And no one else has noticed.`,{y:'shock'}]
+], next:'reflect'},
+reflect:{scene:'office', time:'THU 4:15 PM', stats:{i:5}, lines:[
+  ['n',`STEP 1 · BRIEF REFLECTION. Before doing anything, you take five minutes.`,{y:'think'}],
+  ['y',`Breathe. What do I know, what don't I know, and what could we still do by Monday?`,{y:'think'}],
+  ['n',`You write a one-page note: what happened, what it affects, and three ways to recover.`,{y:'neutral'}]
+], tags:[['EI','Self-awareness'],['CS','Deliberative'],['CS','Analytical']], next:'approach'},
+approach:{scene:'boss', time:'THU 4:25 PM', stats:{i:10,t:5}, lines:[
+  ['n',`STEP 2 · GO TO THE SUPERVISOR. You knock on Director Harper's door.`,{h:'neutral',y:'neutral'}],
+  ['y',`Do you have ten minutes? I found a problem in the Lakeside data, and I wanted you to hear it today.`],
+  ['y',`A skip-logic bug invalidated about a third of the survey responses. I caught it in a routine check this afternoon.`],
+  ['y',`I don't think I should choose the fix alone. I've sketched three options, and I'll own the rework.`]
+], tags:[['CCL','Integrity'],['CCL','Courage'],['TKI','Collaborating']],
+  prompt:`YOU ARE DIRECTOR HARPER. HOW DO YOU RESPOND?`,
+  choices:[[`Call a team meeting.`,'A'],[`Yell.`,'B'],[`Fire the analyst.`,'C'],[`Ship the flawed analysis anyway.`,'D'],[`"I'll take care of it."`,'E']]},
+
+A:{scene:'conf', time:'THU 4:40 PM', stats:{m:10,t:5}, lines:[
+  ['h',`Conference room, five minutes. Everyone on Lakeside.`,{h:'stern'}],
+  ['n',`Priya, Marcus, and Jun file in, trading nervous looks.`,{p:'sad',m:'sad',j:'sad'}],
+  ['y',`I'll keep it short: what broke, what it touches, and what we can still do by Monday.`],
+  ['y',`One: re-run on the 428 valid responses, with weights. Two: re-contact the affected respondents. Three: ask Lakeside for a short extension.`]
+], tags:[['ISI','Rationalizing'],['ISI','Bridging'],['CCL','Communication']],
+  prompt:`HARPER, THE ROOM IS WAITING. WHAT DO YOU SAY?`,
+  choices:[[`"Who did this?"`,'A1'],[`"Split the work. We hit Monday."`,'A2']]},
+A1:{scene:'conf', stats:{m:15,t:5}, lines:[
+  ['h',`Before we talk fixes: who set up that survey?`,{h:'stern'}],
+  ['n',`Marcus built the skip logic. He stares at the table.`,{m:'sad'}],
+  ['y',`The bug came in at setup, and I could have run this check sooner. It's a process gap, not one person's fault.`,{m:'neutral'}],
+  ['y',`Could we spend the next hour on the fix, and hold a short review next week on how we check survey setups?`,{h:'neutral'}]
+], tags:[['EI','Relationship management'],['TKI','Collaborating, not competing'],['CCL','Respect']], next:'client'},
+A2:{scene:'conf', stats:{m:10,t:10}, lines:[
+  ['h',`Okay. Priya re-weights, Jun checks the code, Marcus rebuilds the skip logic.`,{h:'smile',p:'neutral',m:'neutral',j:'neutral'}],
+  ['y',`I'll take the re-analysis and send a status note at 9 and 5 every day until Monday.`,{y:'smile'}]
+], tags:[['CCL','Ability to delegate'],['CS','Responsibility'],['CS','Restorative']], next:'client'},
+
+B:{scene:'boss', stats:{t:-10}, lines:[
+  ['h',`FOUR DAYS?! How did you let this happen? Do you know what's riding on this report?`,{h:'angry',y:'shock'},'yell'],
+  ['n',`Your face goes hot. Every instinct says: defend yourself, or shrink.`,{y:'sad'}],
+  ['y',`You're right to be upset. I'm upset too.`,{y:'neutral'}],
+  ['y',`I'm not here with an excuse. Here's what happened, what it affects, and what I can have ready by tomorrow morning.`]
+], tags:[['EI','Self-management'],['EI','Social awareness'],['TKI','Not avoiding']],
+  prompt:`HARPER, YOUR HEART IS POUNDING. WHAT NOW?`,
+  choices:[[`Take a breath. "...Okay. What do you propose?"`,'B1'],[`Keep yelling. "Get out. Just fix it."`,'B2']]},
+B1:{scene:'boss', stats:{t:15}, lines:[
+  ['h',`...I'm sorry. That wasn't fair. What do you propose?`,{h:'sad'}],
+  ['y',`My recommendation: re-run on the valid responses, add a sensitivity check, and give Lakeside a heads-up.`,{h:'neutral'}],
+  ['y',`But you know this client better than I do. Which way do you want to go?`]
+], tags:[['ISI','Negotiating'],['ISI','Bridging'],['EI','Relationship management']], next:'client'},
+B2:{scene:'boss', time:'THU 5:05 PM', stats:{t:-10,m:-5}, lines:[
+  ['h',`GET OUT. Just fix it. I don't want to hear about it again until it's done.`,{h:'angry'},'yell'],
+  ['n',`You leave. You don't argue in the doorway.`,{y:'sad'}],
+  ['n',`Twenty minutes later, you send a calm email: the error, its scope, three options, and a request for 15 minutes tomorrow at 9.`,{h:'stern',y:'neutral'}]
+], tags:[['EI','Self-management'],['CCL','Communication'],['TKI','Not avoiding']],
+  prompt:`FRIDAY, 8:45 AM. HARPER, YOU READ THE EMAIL. WHAT DO YOU DO?`,
+  choices:[[`Apologize and work the plan.`,'B2a'],[`Ignore it.`,'B2b']]},
+B2a:{scene:'boss', time:'FRI 9:00 AM', stats:{t:20,c:10}, lines:[
+  ['h',`I owe you an apology. I yelled because I was scared about Lakeside. That's not on you.`,{h:'sad',y:'neutral'}],
+  ['h',`Walk me through option one.`,{h:'neutral'}],
+  ['y',`Thank you. Here's the plan.`,{y:'smile'}]
+], tags:[['EI','Relationship management'],['CCL','Learning agility']],
+  ending:{rank:'A', title:'STORM PASSED', text:`The yelling hurt, but you didn't yell back or go silent. Your calm written follow-up gave Harper a way back, and the report goes out Monday with re-weighted numbers and a clear methods note.`}},
+B2b:{scene:'night', time:'FRI 6:30 PM', stats:{i:15,t:-10,c:5}, lines:[
+  ['n',`Friday passes. No reply. The deadline is three days away.`,{y:'sad'}],
+  ['y',`A funding decision depends on these numbers. I can't just leave it here.`,{y:'think'}],
+  ['n',`You email the research director, copying Harper: the error, the options, and a request for 15 minutes. No complaints, just facts.`,{y:'neutral'}],
+  ['n',`Monday morning, the director sits down with you and Harper. The corrected report goes out Wednesday.`]
+], tags:[['CCL','Courage'],['ISI','Asserting (backstop)'],['CS','Responsibility']],
+  ending:{rank:'B', title:'QUIET COURAGE', text:`Going over your boss's head is risky. You did it openly, in writing, with Harper copied, and kept the focus on the client's decision, not on blame. The report is fixed, but you and Harper have trust to rebuild.`}},
+
+C:{scene:'boss', stats:{t:-30,i:10}, lines:[
+  ['h',`A third of the data? You're done here. Pack your desk.`,{h:'angry',y:'shock'},'fired'],
+  ['n',`The office goes very quiet.`],
+  ['y',`I understand you're angry. Before I go, I want to make sure the team can fix this.`,{y:'neutral'}],
+  ['y',`Here's my note: the bug, the 212 affected IDs, and how to re-run the analysis. I'll send it to you and Priya in writing.`]
+], tags:[['CCL','Integrity'],['CS','Responsibility'],['EI','Self-management']],
+  prompt:`HARPER, THE ANALYST IS STILL HOLDING OUT THE NOTE. WHAT DO YOU DO?`,
+  choices:[[`"...Wait. Sit down. Walk me through it."`,'C1'],[`"HR will be in touch."`,'C2']]},
+C1:{scene:'boss', stats:{t:25}, lines:[
+  ['h',`...Wait. Sit down. Walk me through it.`,{h:'sad',y:'neutral'}],
+  ['n',`You go through the note line by line. Slowly, Harper's shoulders drop.`],
+  ['h',`You caught this yourself. I reacted to the deadline, not to you. Let's fix it.`,{h:'neutral'}]
+], tags:[['ISI','Rationalizing'],['EI','Self-management'],['CCL','Learning agility']], next:'client'},
+C2:{scene:'hall', time:'THU 5:30 PM', stats:{m:-15}, lines:[
+  ['n',`You pack a box.`,{y:'sad'}],
+  ['n',`Before you leave, you send the handoff note to Harper and Priya, and ask HR in writing which process applies.`,{y:'neutral'}]
+], tags:[['CCL','Integrity'],['CCL','Respect'],['CS','Responsibility']],
+  prompt:`MONDAY, 8 AM. HARPER, THE HANDOFF NOTE IS IN YOUR INBOX. WHAT DO YOU DO?`,
+  choices:[[`Read it and call Lakeside.`,'C2a'],[`Delete it and ship the report.`,'C2b']]},
+C2a:{scene:'call', cast:[['harper',160]], time:'MON 8:30 AM', stats:{c:20,t:10}, lines:[
+  ['n',`Harper calls Lakeside, explains the error, and uses your note to re-run the analysis.`,{h:'neutral'}],
+  ['l',`Thank you for telling us. Take until Friday. We'd rather decide on solid numbers.`],
+  ['h',`...And I'm calling the analyst back. Letting them go was wrong.`,{h:'sad'}]
+], tags:[['CCL','Integrity'],['CS','Restorative']],
+  ending:{rank:'B', title:'FIRED, BUT RIGHT', text:`You lost your job for a weekend but kept your integrity, and your handoff note saved the project. The lesson for Harper: firing someone for reporting their own error teaches everyone else to hide theirs.`}},
+C2b:{scene:'hall', time:'MON 9:00 AM', stats:{c:-25,i:5}, lines:[
+  ['n',`The report goes out with the bad data. But your note, timestamped Thursday at 5:01 PM, still exists.`,{y:'sad'}],
+  ['y',`I can't control her choice. I can take this to the organization's ethics office and keep my own record clean.`,{y:'neutral'}]
+], tags:[['CCL','Integrity'],['CCL','Courage']],
+  ending:{rank:'C', title:'THE RECORD REMAINS', text:`Sometimes doing the right thing doesn't win. You documented everything, used proper channels, and left with your integrity. The organization lost a careful analyst, and Lakeside is deciding on flawed numbers.`}},
+
+D:{scene:'boss', stats:{i:15,t:-10}, lines:[
+  ['h',`Lakeside will never notice. Ship it as is. We don't have time for this.`,{h:'stern'}],
+  ['n',`This is the moment when staying quiet would be easiest.`,{y:'think'}],
+  ['y',`I can't put my name on numbers I know are wrong, especially when Pathways' funding depends on them.`,{y:'neutral'}],
+  ['y',`But I can still make Monday: re-run on the valid two-thirds, add a sensitivity check, and write a short limitations note.`]
+], tags:[['ISI','Asserting (backstop)'],['ISI','Negotiating'],['CCL','Courage'],['CCL','Integrity']],
+  prompt:`HARPER, THE ANALYST WON'T BUDGE. WHAT DO YOU DO?`,
+  choices:[[`"Fine. Show me the caveated version."`,'D1'],[`"That's an order."`,'D2']]},
+D1:{scene:'boss', stats:{t:10}, lines:[
+  ['h',`Fine. Show me the caveated version.`,{h:'neutral'}],
+  ['y',`You'll have it by noon tomorrow, so there's time to push back on it.`,{y:'smile'}]
+], tags:[['TKI','Collaborating'],['CS','Responsibility']], next:'client'},
+D2:{scene:'boss', stats:{t:-10,i:10}, lines:[
+  ['h',`That's an order. Ship it, or you're off this project.`,{h:'angry'},'yell'],
+  ['y',`I understand. I'll put my concern in writing, and I'd like us to take it to the research director together.`,{y:'neutral'}]
+], tags:[['CCL','Integrity'],['ISI','Asserting'],['EI','Relationship management']],
+  prompt:`HARPER, THE ANALYST ASKED TO ESCALATE TOGETHER. YOUR CALL:`,
+  choices:[[`"Fine. Let's go see the director."`,'D2a'],[`"Ship it, or you're off the project."`,'D2b']]},
+D2a:{scene:'director', time:'THU 5:15 PM', stats:{c:20,t:10,i:10}, lines:[
+  ['n',`The research director reads your one-pager in two minutes.`,{d:'think',h:'stern'}],
+  ['d',`We tell Lakeside today, with a plan. Good catch, and thank you both for bringing it here together.`,{d:'smile',h:'neutral'}]
+], tags:[['TKI','Collaborating'],['ISI','Bridging'],['CCL','Respect']],
+  ending:{rank:'A', title:'ESCALATION DONE RIGHT', text:`You didn't go around Harper; you brought her with you. The disagreement stayed professional, and Lakeside's decision will rest on honest data.`}},
+D2b:{scene:'office', time:'FRI 10:00 AM', stats:{t:-15,i:15,c:10}, lines:[
+  ['n',`You step off the project and send your concern to the research director in writing, copying Harper.`,{y:'neutral'}],
+  ['n',`The next day, the director pulls the report for review.`]
+], tags:[['CCL','Courage'],['CCL','Integrity'],['ISI','Asserting (backstop)']],
+  ending:{rank:'B', title:'LINE IN THE SAND', text:`Holding firm cost you a project and strained a relationship. But some lines are worth holding: a funding decision for real young people depended on these numbers.`}},
+
+E:{scene:'boss', stats:{t:10}, lines:[
+  ['h',`Thanks for flagging this. I'll take care of it.`,{h:'smile'}],
+  ['n',`Relief, and a little uncertainty. What does "take care of it" mean?`,{y:'think'}],
+  ['y',`Thank you. Would it help if I sent a one-page summary within the hour?`,{y:'neutral'}],
+  ['y',`And how would you like me involved: re-running the numbers, or standing by?`]
+], tags:[['EI','Social awareness'],['ISI','Bridging'],['CCL','Respect']],
+  prompt:`HARPER, HOW DO YOU ANSWER?`,
+  choices:[[`"Send the summary, and start on option one."`,'E1'],[`"Don't worry about it. Back to your other work."`,'E2']]},
+E1:{scene:'boss', stats:{t:10}, lines:[
+  ['h',`Yes, send it, and start on option one. I'll decide how to handle Lakeside tonight.`,{h:'smile'}],
+  ['y',`The summary will be in your inbox in 30 minutes.`,{y:'smile'}]
+], tags:[['CS','Responsibility'],['CCL','Communication']], next:'client'},
+E2:{scene:'boss', lines:[
+  ['h',`Don't worry about it. Back to your other work.`,{h:'neutral'}],
+  ['n',`You respect that, but you set a reminder to check in tomorrow at noon.`,{y:'think'}]
+], tags:[['TKI','Accommodating, for now'],['EI','Self-management']],
+  prompt:`FRIDAY, NOON. THE ANALYST CHECKS IN. HARPER, WHAT DO YOU SAY?`,
+  choices:[[`Explain what you did.`,'E2a'],[`Brush it off. The draft hasn't changed.`,'E2b']]},
+E2a:{scene:'boss', time:'FRI 12:00 PM', stats:{t:15,c:15}, lines:[
+  ['h',`I called Lakeside last night. They moved the deadline a week, and Jun is re-running the data.`,{h:'smile',y:'neutral'}],
+  ['h',`Thanks for checking in. That's exactly what I want from you.`,{y:'smile'}]
+], tags:[['EI','Social awareness'],['CCL','Respect']],
+  ending:{rank:'A', title:'TRUST THE PROCESS', text:`"I'll take care of it" can be real. You didn't hover or disappear: you offered help, accepted the answer, and checked in once. Now you know how Harper works.`}},
+E2b:{scene:'boss', time:'FRI 12:00 PM', stats:{i:10,c:5}, lines:[
+  ['h',`I told you, I'm handling it.`,{h:'stern',y:'neutral'}],
+  ['y',`I hear you. I noticed the Monday draft still uses all 640 responses. Could we add a limitations note? I can write it in an hour.`],
+  ['n',`Harper pauses. Then she nods.`,{h:'neutral'}]
+], tags:[['ISI','Negotiating'],['CCL','Courage'],['CS','Restorative']],
+  ending:{rank:'B', title:'THE SECOND KNOCK', text:`Following up once isn't nagging when funding rides on the answer. Ask a specific question, offer a small, concrete fix, and keep it respectful.`}},
+
+client:{scene:'boss', lines:[
+  ['n',`The plan is in motion. One decision left: what does Lakeside hear, and when?`,{h:'think',y:'neutral'}]
+], prompt:`HARPER, HOW DO YOU HANDLE THE CLIENT?`,
+  choices:[[`Call Lakeside today.`,'K1'],[`Deliver Monday with a limitations note.`,'K2'],[`Fix it quietly. Lakeside never hears.`,'K3']]},
+K1:{scene:'call', time:'FRI 10:00 AM', stats:{c:25,i:15}, lines:[
+  ['h',`We found an error in our own quality check, and we wanted you to hear it before you rely on the report.`,{h:'neutral',y:'neutral'}],
+  ['y',`Here's what's affected, how we're fixing it, and when you'll have corrected numbers.`],
+  ['l',`Thank you for telling us. Take until Wednesday. We'd rather decide on solid numbers.`,{h:'smile',y:'smile'}]
+], tags:[['CCL','Integrity'],['ISI','Rationalizing'],['CCL','Communication']],
+  ending:{rank:'S', title:'TRUSTED PARTNER', text:`Bad news, delivered early and with a plan, became a reason for Lakeside to trust you. Its decision on Pathways will rest on sound evidence.`}},
+K2:{scene:'night', time:'SUN 9:40 PM', stats:{c:10,i:10}, lines:[
+  ['n',`You re-run on the 428 valid responses, add a sensitivity check, and write a plain-language limitations note.`,{y:'think'}],
+  ['n',`Monday, 9 AM: delivered on time.`,{y:'smile'}]
+], tags:[['CS','Restorative'],['CS','Analytical'],['CCL','Integrity']],
+  ending:{rank:'A', title:'ON TIME AND HONEST', text:`The report is narrower but honest, and the limitations note lets Lakeside weigh it properly. A call ahead of time would have built even more trust.`}},
+K3:{scene:'night', time:'SUN 11:15 PM', stats:{c:-5,i:-5}, lines:[
+  ['y',`I'll do the fix. But if the numbers change, could we add one line on methods? If Lakeside finds out later, it'll look like we hid it.`,{y:'think'}],
+  ['n',`Harper agrees to one line, buried in an appendix.`,{y:'sad'}]
+], tags:[['ISI','Negotiating'],['CCL','Integrity']],
+  ending:{rank:'C', title:'CLOSE CALL', text:`The numbers are fixed, but Lakeside was never told why they changed. Quiet fixes save face today and risk trust tomorrow, especially when a funding decision is on the line.`}}
+};
+
+const CODE = {y:'you', h:'harper', p:'priya', m:'marcus', j:'jun', d:'director'};
+const NAME = {y:'YOU', h:'DIRECTOR HARPER', p:'PRIYA', m:'MARCUS', j:'JUN', d:'RESEARCH DIRECTOR', l:'LAKESIDE FOUNDATION'};
+const PITCH = {y:520, h:330, n:760, l:440, p:600, m:420, j:640, d:380};
+const METERS = [['t','TRUST','#7BAFD4'],['i','INTEGRITY','#FFFFFF'],['c','CLIENT','#F2C14E'],['m','TEAM','#8FDDA6']];
+const FW = {EI:['EI','#7BAFD4','Emotional intelligence'], TKI:['TKI','#F2C14E','Thomas-Kilmann'], ISI:['ISI','#8FDDA6','Influence styles'], CS:['STRENGTHS','#C9B6F2','CliftonStrengths'], CCL:['CCL','#FFFFFF','CCL characteristics']};
+const DAYS = {THU:4, FRI:3, SAT:2, SUN:1, MON:0};
+const START = {t:50, i:60, c:50, m:50};
+
+/* ---------- state ---------- */
+const st = {mode:'title', sceneKey:'title', cast:[], expr:{}, node:null, line:0, typing:false, full:'', shown:0, talk:null,
+  stats:{...START}, path:[], tags:[], hist:[], sel:0, time:'THU 4:12 PM', muted:false, lens:true};
+try { st.muted = localStorage.getItem('dbn-muted') === '1'; st.lens = localStorage.getItem('dbn-lens') !== '0'; } catch(e){}
+
+/* ---------- audio ---------- */
+let AC = null;
+function ac(){ if (!AC){ try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} } if (AC && AC.state === 'suspended') AC.resume(); return AC; }
+function tone(f, d, type, v, f2, delay){
+  if (st.muted) return; const a = ac(); if (!a) return;
+  const t0 = a.currentTime + (delay || 0), o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + d);
+  g.gain.setValueAtTime(v || .04, t0); g.gain.exponentialRampToValueAtTime(.0001, t0 + d);
+  o.connect(g).connect(a.destination); o.start(t0); o.stop(t0 + d + .02);
+}
+function noise(d, v){
+  if (st.muted) return; const a = ac(); if (!a) return;
+  const buf = a.createBuffer(1, a.sampleRate * d, a.sampleRate), ch = buf.getChannelData(0);
+  for (let i = 0; i < ch.length; i++) ch[i] = (Math.random()*2 - 1) * (1 - i/ch.length);
+  const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  f.type = 'lowpass'; f.frequency.value = 700; g.gain.value = v; s.buffer = buf; s.connect(f).connect(g).connect(a.destination); s.start();
+}
+const SFX = {
+  blip: sp => tone(PITCH[sp] || 560, .035, 'square', sp === 'n' ? .012 : .022),
+  move: () => tone(720, .04, 'square', .03),
+  pick: () => { tone(660, .07, 'square', .04); tone(990, .1, 'square', .04, null, .07); },
+  up:   () => { tone(880, .06, 'triangle', .05); tone(1320, .08, 'triangle', .05, null, .06); },
+  down: () => tone(300, .2, 'sawtooth', .035, 170),
+  alarm:() => [880,660,880,660].forEach((f, i) => tone(f, .11, 'square', .035, null, i*.13)),
+  yell: () => { noise(.4, .14); tone(150, .45, 'sawtooth', .07, 70); },
+  fired:() => { tone(440, .8, 'sawtooth', .06, 80); noise(.25, .1); },
+  good: () => [523,659,784,1047,784,1047].forEach((f, i) => tone(f, .15, 'square', .045, null, i*.11)),
+  ok:   () => [523,659,784].forEach((f, i) => tone(f, .18, 'square', .04, null, i*.13)),
+  bad:  () => [392,311,262,196].forEach((f, i) => tone(f, .28, 'triangle', .06, null, i*.22)),
+  start:() => [392,523,659,784,1047].forEach((f, i) => tone(f, .1, 'square', .04, null, i*.07))
+};
+
+/* ---------- effects ---------- */
+let shakeUntil = 0, flash = null, fadeA = 0, frame = 0;
+const parts = [];
+function doFx(k){
+  const now = performance.now();
+  if (k === 'yell'){ SFX.yell(); if (!reduce) shakeUntil = now + 650; flash = {c:'224,83,61', a:.45}; }
+  else if (k === 'fired'){ SFX.fired(); if (!reduce) shakeUntil = now + 380; flash = {c:'255,255,255', a:.8}; }
+  else if (k === 'alarm'){ SFX.alarm(); flash = {c:'224,83,61', a:.3}; }
+  else if (k === 'good'){ SFX.good(); confetti(); }
+  else if (k === 'ok') SFX.ok();
+  else if (k === 'bad'){ SFX.bad(); flash = {c:'11,26,48', a:.6}; }
+}
+function confetti(){
+  if (reduce) return;
+  const cols = [C.cb, '#fff', C.navy, C.gold, C.cbd];
+  for (let i = 0; i < 140; i++) parts.push({x:Math.random()*W, y:-Math.random()*90, vx:(Math.random() - .5)*.7, vy:.5 + Math.random(), life:420, c:cols[i % cols.length], s:2});
+}
+
+/* ---------- render loop ---------- */
+function loop(t){
+  frame++;
+  R(0,0,W,H,'#000');
+  ctx.save();
+  if (t < shakeUntil) ctx.translate(Math.round(Math.random()*6 - 3), Math.round(Math.random()*4 - 2));
+  const sc = SCENES[st.sceneKey];
+  sc.bg(t);
+  for (const c of st.cast){
+    const e = st.expr[c.id] || 'neutral';
+    const talk = st.typing && CODE[st.talk] === c.id;
+    const {hx, hy} = person(c.id, c.x, 108, e, talk, t, c.o);
+    if (e === 'angry' && !reduce && frame % 5 === 0) parts.push({x:hx + 2 + Math.random()*10, y:hy - 4, vx:(Math.random() - .5)*.4, vy:-.45, life:34, c:'rgba(255,255,255,.85)', s:2});
+  }
+  if (sc.fg) sc.fg(t);
+  for (let i = parts.length - 1; i >= 0; i--){
+    const p = parts[i]; p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.life <= 0 || p.y > H){ parts.splice(i, 1); continue; }
+    R(p.x, p.y, p.s, p.s, p.c);
+  }
+  ctx.restore();
+  if (flash){ ctx.fillStyle = `rgba(${flash.c},${flash.a})`; ctx.fillRect(0,0,W,H); flash.a -= .03; if (flash.a <= 0) flash = null; }
+  if (fadeA > 0){ ctx.fillStyle = `rgba(11,26,48,${fadeA})`; ctx.fillRect(0,0,W,H); fadeA = Math.max(0, fadeA - .06); }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- UI helpers ---------- */
+function setScene(key, cast, force){
+  if (st.sceneKey === key && !force) return;
+  st.sceneKey = key;
+  st.cast = (cast || SCENES[key].cast).map(([id, x, o]) => ({id, x, o:o || {}}));
+  st.expr = {};
+  fadeA = 1;
+}
+function setTime(s){
+  st.time = s; const d = DAYS[s.slice(0,3)];
+  $('clockTime').textContent = s;
+  const due = $('due');
+  due.textContent = d === 0 ? 'DUE TODAY' : `DUE IN ${d} DAY${d > 1 ? 'S' : ''}`;
+  due.classList.toggle('today', d === 0);
+}
+function meterHTML(){
+  return METERS.map(([k, l, c]) => `<span class="ml pix">${l}</span><span class="cells">${
+    Array.from({length:10}, (_, i) => `<i class="cell${i < Math.round(st.stats[k]/10) ? ' on' : ''}" style="--c:${c}"></i>`).join('')}</span>`).join('');
+}
+function renderMeters(){
+  $('hud').innerHTML = meterHTML();
+  $('hud').setAttribute('aria-label', METERS.map(([k, l]) => `${l} ${st.stats[k]}`).join(', '));
+}
+function toast(txt, good){
+  const d = document.createElement('div');
+  d.className = 'toast'; d.textContent = txt; d.style.color = good ? '#8FDDA6' : '#FF8A7A';
+  $('toasts').appendChild(d); setTimeout(() => d.remove(), 1900);
+}
+function applyStats(s){
+  let up = false, down = false;
+  for (const k in s){
+    const d = s[k]; st.stats[k] = Math.max(0, Math.min(100, st.stats[k] + d));
+    const lbl = METERS.find(m => m[0] === k)[1];
+    toast(`${d > 0 ? '+' : ''}${d} ${lbl}`, d > 0); d > 0 ? up = true : down = true;
+  }
+  if (up) SFX.up(); else if (down) SFX.down();
+  renderMeters();
+}
+function addTags(tags){ (tags || []).forEach(([f, l]) => { const k = f + '|' + l; if (!st.tags.includes(k)) st.tags.push(k); }); }
+function showLens(tags){
+  const el = $('lens'); el.innerHTML = '';
+  if (!tags || !st.lens) return;
+  el.innerHTML = '<div class="chip head">LEADERSHIP LENS</div>' + tags.map(([f, l], i) =>
+    `<div class="chip" style="--c:${FW[f][1]};animation-delay:${(i + 1)*.12}s"><b>${FW[f][0]}</b>${l}</div>`).join('');
+}
+
+/* ---------- typing ---------- */
+let typeTimer = null;
+function type(text, sp){
+  clearTimeout(typeTimer);
+  st.full = text; st.shown = 0; st.typing = true; st.talk = sp;
+  $('text').textContent = ''; $('next').hidden = true;
+  $('sr').textContent = (NAME[sp] ? NAME[sp] + ': ' : '') + text;
+  tick();
+}
+function tick(){
+  if (!st.typing) return;
+  st.shown++;
+  $('text').textContent = st.full.slice(0, st.shown);
+  const ch = st.full[st.shown - 1];
+  if (ch && ch !== ' ' && st.shown % 2 === 0) SFX.blip(st.talk);
+  if (st.shown >= st.full.length){ finishType(); return; }
+  typeTimer = setTimeout(tick, /[.,!?:]/.test(ch) ? 110 : 22);
+}
+function finishType(){
+  clearTimeout(typeTimer); st.typing = false;
+  $('text').textContent = st.full; $('next').hidden = false;
+}
+
+/* ---------- flow ---------- */
+function playNode(id){
+  const n = N[id];
+  st.node = id; st.mode = 'lines'; st.line = 0;
+  setScene(n.scene, n.cast);
+  if (n.time) setTime(n.time);
+  if (n.stats) applyStats(n.stats);
+  $('lens').innerHTML = '';
+  hideChoices();
+  showLine();
+}
+function showLine(){
+  const n = N[st.node], [sp, text, ex, fx] = n.lines[st.line];
+  if (ex) for (const k in ex) st.expr[CODE[k]] = ex[k];
+  if (fx) doFx(fx);
+  const spk = $('speaker');
+  if (sp === 'n'){ spk.hidden = true; } else { spk.hidden = false; spk.textContent = NAME[sp]; spk.className = 'pix ' + sp; }
+  $('text').className = sp === 'n' ? 'narr' : '';
+  type(text, sp);
+  if (st.line === n.lines.length - 1){ addTags(n.tags); showLens(n.tags); }
+}
+function advance(){
+  if (st.mode === 'title'){ startGame(); return; }
+  if (st.mode === 'ending') return;
+  if (st.mode === 'choices'){ pick(st.sel); return; }
+  if (st.typing){ finishType(); return; }
+  const n = N[st.node];
+  if (st.line < n.lines.length - 1){ st.line++; showLine(); return; }
+  if (n.choices) showChoices();
+  else if (n.next) playNode(n.next);
+  else if (n.ending) showEnding();
+}
+function snap(){ return {node:st.node, stats:{...st.stats}, path:[...st.path], tags:[...st.tags], time:st.time}; }
+function showChoices(){
+  const n = N[st.node];
+  st.mode = 'choices'; st.sel = 0;
+  st.hist.push(snap());
+  $('speaker').hidden = true; $('text').hidden = true; $('next').hidden = true;
+  $('prompt').hidden = false; $('prompt').textContent = n.prompt;
+  const box = $('choices'); box.hidden = false; box.innerHTML = '';
+  n.choices.forEach(([label], i) => {
+    const b = document.createElement('button');
+    b.className = 'choice' + (i === 0 ? ' sel' : ''); b.setAttribute('role', 'listitem');
+    b.innerHTML = `<span class="k">${i + 1}</span><span></span>`; b.lastChild.textContent = label;
+    b.addEventListener('click', ev => { ev.stopPropagation(); pick(i); });
+    b.addEventListener('mouseenter', () => setSel(i));
+    box.appendChild(b);
+  });
+  $('sr').textContent = n.prompt + ' ' + n.choices.map(([l], i) => `${i + 1}: ${l}`).join('. ');
+}
+function hideChoices(){ $('prompt').hidden = true; $('choices').hidden = true; $('choices').innerHTML = ''; $('text').hidden = false; }
+function setSel(i){ st.sel = i; [...$('choices').children].forEach((c, j) => c.classList.toggle('sel', j === i)); }
+function moveSel(d){ const n = N[st.node].choices.length; setSel((st.sel + d + n) % n); SFX.move(); }
+function pick(i){
+  if (st.mode !== 'choices') return;
+  const c = N[st.node].choices[i]; if (!c) return;
+  SFX.pick(); st.path.push(c[0]); playNode(c[1]);
+}
+function restore(s){
+  st.stats = {...s.stats}; st.path = [...s.path]; st.tags = [...s.tags];
+  setTime(s.time); renderMeters();
+  st.node = s.node; const n = N[s.node];
+  setScene(n.scene, n.cast, true);
+  n.lines.forEach(([, , ex]) => { if (ex) for (const k in ex) st.expr[CODE[k]] = ex[k]; });
+  $('ending').classList.remove('show'); $('box').hidden = false;
+  st.typing = false; clearTimeout(typeTimer);
+  showLens(n.tags);
+  showChoices();
+}
+function back(){
+  if (st.mode === 'title' || !st.hist.length) return;
+  if (st.mode === 'choices'){ if (st.hist.length < 2) return; st.hist.pop(); }
+  SFX.move(); restore(st.hist.pop());
+}
+function again(){ if (!st.hist.length) return; const s = st.hist[0]; st.hist = []; SFX.pick(); restore(s); }
+function showEnding(){
+  const e = N[st.node].ending; st.mode = 'ending';
+  doFx({S:'good', A:'good', B:'ok', C:'bad'}[e.rank]);
+  $('eRank').textContent = e.rank; $('eRank').className = 'rank pix r-' + e.rank;
+  $('eTitle').textContent = e.title; $('eText').textContent = e.text;
+  $('eMeters').innerHTML = meterHTML();
+  const ol = $('ePath'); ol.innerHTML = '';
+  st.path.forEach((p, i) => { const li = document.createElement('li'); li.innerHTML = `<span>${i + 1}.</span><span></span>`; li.lastChild.textContent = p; ol.appendChild(li); });
+  const g = {}; st.tags.forEach(k => { const [f, l] = k.split('|'); (g[f] = g[f] || []).push(l); });
+  $('eLens').innerHTML = Object.keys(FW).filter(f => g[f]).map(f => `<div><b style="color:${FW[f][1]}">${FW[f][2].toUpperCase()}</b>${g[f].join(' · ')}</div>`).join('');
+  setTimeout(() => { if (st.mode === 'ending'){ $('ending').classList.add('show'); $('again').focus({preventScroll:true}); } }, 700);
+}
+function resetRun(){ st.stats = {...START}; st.path = []; st.tags = []; st.hist = []; renderMeters(); setTime('THU 4:12 PM'); }
+function startGame(){
+  ac(); SFX.start();
+  $('title').classList.remove('show'); $('ending').classList.remove('show');
+  $('hud').hidden = false; $('clock').hidden = false; $('box').hidden = false;
+  resetRun(); st.sceneKey = null; playNode('intro1');
+}
+function toTitle(){
+  clearTimeout(typeTimer); st.typing = false; st.mode = 'title';
+  resetRun(); setScene('title', null, true);
+  $('ending').classList.remove('show'); $('title').classList.add('show');
+  $('hud').hidden = true; $('clock').hidden = true; $('box').hidden = true;
+  $('startBtn').focus({preventScroll:true});
+}
+function toggleMute(){ st.muted = !st.muted; $('tSound').setAttribute('aria-pressed', String(!st.muted)); try { localStorage.setItem('dbn-muted', st.muted ? '1' : '0'); } catch(e){} }
+function toggleLens(){
+  st.lens = !st.lens; $('tLens').setAttribute('aria-pressed', String(st.lens));
+  try { localStorage.setItem('dbn-lens', st.lens ? '1' : '0'); } catch(e){}
+  if (st.node && st.line === N[st.node].lines.length - 1) showLens(N[st.node].tags); else $('lens').innerHTML = '';
+}
+function toggleFS(){
+  try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch(e){}
+}
+
+/* ---------- input ---------- */
+$('stage').addEventListener('click', e => { if (e.target.closest('button') || e.target.closest('#ending')) return; advance(); });
+$('startBtn').addEventListener('click', e => { e.stopPropagation(); startGame(); });
+$('again').addEventListener('click', again);
+$('toTitle').addEventListener('click', toTitle);
+$('tUndo').addEventListener('click', e => { e.stopPropagation(); back(); });
+$('tLens').addEventListener('click', e => { e.stopPropagation(); toggleLens(); });
+$('tSound').addEventListener('click', e => { e.stopPropagation(); toggleMute(); });
+$('tFull').addEventListener('click', e => { e.stopPropagation(); toggleFS(); });
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (k === ' ' || k === 'Enter'){
+    if (st.mode === 'ending'){ if (document.activeElement && document.activeElement.id === 'toTitle') return; e.preventDefault(); again(); return; }
+    e.preventDefault(); advance();
+  }
+  else if (/^[1-5]$/.test(k)){ if (st.mode === 'choices'){ e.preventDefault(); pick(+k - 1); } }
+  else if (k === 'ArrowDown' || k === 'ArrowUp'){ if (st.mode === 'choices'){ e.preventDefault(); moveSel(k === 'ArrowDown' ? 1 : -1); } }
+  else if (k === 'Backspace' || k === 'b' || k === 'B'){ e.preventDefault(); back(); }
+  else if (k === 'm' || k === 'M') toggleMute();
+  else if (k === 'l' || k === 'L') toggleLens();
+  else if (k === 'f' || k === 'F') toggleFS();
+  else if (k === 'r' || k === 'R') toTitle();
+});
+
+/* ---------- boot ---------- */
+$('tSound').setAttribute('aria-pressed', String(!st.muted));
+$('tLens').setAttribute('aria-pressed', String(st.lens));
+renderMeters();
+// Optional deep links for rehearsal: #at=NODE (end of that scene), #choose=NODE (its choices), #end=NODE (its ending)
+const m = location.hash.match(/^#(at|choose|end)=(\w+)$/);
+if (m && N[m[2]]){
+  st.muted = true;
+  $('title').classList.remove('show'); $('hud').hidden = false; $('clock').hidden = false; $('box').hidden = false;
+  st.sceneKey = null; playNode(m[2]);
+  st.line = N[m[2]].lines.length - 1; showLine(); finishType();
+  if (m[1] === 'choose' && N[m[2]].choices) showChoices();
+  if (m[1] === 'end' && N[m[2]].ending){ st.path = ['(rehearsal link)']; showEnding(); }
+  setTimeout(() => { st.muted = (() => { try { return localStorage.getItem('dbn-muted') === '1'; } catch(e){ return false; } })(); }, 1500);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
